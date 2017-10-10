@@ -261,8 +261,14 @@ public class MantaStorage extends NoneStorage {
         if (logging) {
             logger.info("Performing PUT at /{}/{}", container, object);
         }
+        if (makeContainer) {
+            for (int i = 0; i < containerDepth; i++) {
+                newContainer += "/" + RandomStringUtils.randomAlphabetic(containerLength);
+                logger.info("Building directory: {} ", newContainer);
+            }
+        }
 
-        final String path = pathOfObject(container, object);
+        final String path = pathOfObject(newContainer, object);
         final long contentLength;
 
         if (chunked) {
@@ -274,18 +280,6 @@ public class MantaStorage extends NoneStorage {
         try {
             if (durabilityLevel != null) {
                 headers.setDurabilityLevel(durabilityLevel);
-            }
-            if (makeContainer) {
-                try {
-                    logger.info("Okay starting to create a depth of directories {} ", containerDepth);
-                    for (int i = 0; i < containerDepth; i++) {
-                        newContainer += "/" + RandomStringUtils.randomAlphabetic(containerLength);
-                        logger.info("Building directory: {} ", newContainer);
-                    }
-                    client.putDirectory(newContainer, true);
-                } catch (Exception e) {
-                    throw new StorageException(e);
-                }
             }
             if (this.multipart) {
                 if (client.getContext().isClientEncryptionEnabled()) {
@@ -301,7 +295,7 @@ public class MantaStorage extends NoneStorage {
             // do things in the right order.
             if (e.getServerCode().equals(MantaErrorCode.DIRECTORY_DOES_NOT_EXIST_ERROR)) {
                 try {
-                    String dir = directoryOfContainer(container);
+                    String dir = directoryOfContainer(newContainer);
                     client.putDirectory(dir, true);
                     client.put(path, data, contentLength, headers, null);
                 } catch (IOException ioe) {
