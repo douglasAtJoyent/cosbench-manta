@@ -430,7 +430,7 @@ public class MantaStorage extends NoneStorage {
         if (logging) {
             logger.info("Performing POST at /{}/{}", container, object);
         }
-
+        logger.info("something");
         try {
             String path = pathOfObject(container, object);
             Map<String, String> prefixedMap = new HashMap<>(map.size());
