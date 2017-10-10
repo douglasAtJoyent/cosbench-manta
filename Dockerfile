@@ -10,7 +10,7 @@ ENV _JAVA_OPTIONS=-Dcom.twmacinta.util.MD5.NATIVE_LIB_FILE=/opt/cosbench/lib/arc
 ENV COSBENCH_VERSION 0.4.2.c4
 ENV COSBENCH_CHECKSUM abe837ffce3d6f094816103573433f5358c0b27ce56f414a60dceef985750397
 ENV COSBENCH_MANTA_VERSION 1.1.1
-ENV COSBENCH_MANTA_CHECKSUM e40354da3d156fdc5792c3cbde84dcc9c48edb40b05e78a98d958926c1b0120f
+ENV COSBENCH_MANTA_CHECKSUM 9cafd2c34aaa33fa874982459614fc3ce7dcd5dbd1002b575ff3ec5e5ce6606f
 ENV CONTAINERPILOT_VER 2.7.8
 ENV CONTAINERPILOT file:///etc/containerpilot.json
 ENV OSGI_CONSOLE_PORT_DRIVER 18089
@@ -65,7 +65,7 @@ RUN curl --retry 6 -Ls "https://github.com/intel-cloud/cosbench/releases/downloa
     rm /tmp/cosbench.zip
 
 # Download and install the Manta adaptor
-RUN curl --retry 6 -Ls "https://github.com/joyent/cosbench-manta/releases/download/cosbench-manta-${COSBENCH_MANTA_VERSION}/cosbench-manta-${COSBENCH_MANTA_VERSION}.jar" > /opt/cosbench/osgi/plugins/cosbench-manta.jar && \
+RUN curl --retry 6 -Ls "https://github.com/douglasAtJoyent/cosbench-manta/releases/download/cosbench-manta-${COSBENCH_MANTA_VERSION}/cosbench-manta-${COSBENCH_MANTA_VERSION}.jar" > /opt/cosbench/osgi/plugins/cosbench-manta.jar && \
     echo "${COSBENCH_MANTA_CHECKSUM}  /opt/cosbench/osgi/plugins/cosbench-manta.jar" | sha256sum -c
 
 # Install Consul
