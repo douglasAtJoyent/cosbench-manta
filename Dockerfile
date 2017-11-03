@@ -65,7 +65,7 @@ RUN curl --retry 6 -Ls "https://github.com/intel-cloud/cosbench/releases/downloa
     rm /tmp/cosbench.zip
 
 # Download and install the Manta adaptor
-RUN curl --retry 6 -Ls " https://github.com/douglasAtJoyent/cosbench-manta/releases/download/1.1.12/cosbench-manta-1.1.12.jar > /opt/cosbench/osgi/plugins/cosbench-manta.jar
+RUN curl --retry 6 -Ls "https://github.com/douglasAtJoyent/cosbench-manta/releases/download/1.1.12/cosbench-manta-1.1.12.jar" > /opt/cosbench/osgi/plugins/cosbench-manta.jar
 #RUN curl --retry 6 -Ls "https://github.com/douglasAtJoyent/cosbench-manta/releases/download/cosbench-manta-${COSBENCH_MANTA_VERSION}/cosbench-manta-${COSBENCH_MANTA_VERSION}.jar" > /opt/cosbench/osgi/plugins/cosbench-manta.jar
 
 # Install Consul
