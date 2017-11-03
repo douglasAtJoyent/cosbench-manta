@@ -262,9 +262,15 @@ public class MantaStorage extends NoneStorage {
             logger.info("Performing PUT at /{}/{}", container, object);
         }
         if (makeContainer) {
-            for (int i = 0; i < containerDepth; i++) {
-                newContainer += "/" + RandomStringUtils.randomAlphabetic(containerLength);
-                logger.info("Building directory: {} ", newContainer);
+            newContainer = currentTestDirectory;
+            try {
+                logger.info("Okay starting to create a depth of directories {} ", containerDepth);
+                for (int i = 0; i < containerDepth; i++) {
+                    newContainer += "/" + RandomStringUtils.randomAlphabetic(containerLength);
+                }
+                client.putDirectory(newContainer, true);
+            } catch (Exception e) {
+                throw new StorageException(e);
             }
         }
 
