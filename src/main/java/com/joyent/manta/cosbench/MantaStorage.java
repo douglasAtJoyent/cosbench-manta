@@ -8,6 +8,7 @@ import java.util.Map;
 import java.util.Objects;
 
 import org.apache.commons.io.input.BoundedInputStream;
+import org.apache.commons.lang3.RandomStringUtils;
 
 import com.intel.cosbench.api.storage.NoneStorage;
 import com.intel.cosbench.api.storage.StorageException;
@@ -45,6 +46,15 @@ public class MantaStorage extends NoneStorage {
      * The default number of maximum HTTP connections at one time to the Manta API.
      */
     private static final int MAX_CONNECTIONS = 1024;
+
+  /**
+     * Default containers depth.
+     */
+    public static final int DEFAULT_CONTAINER_DEPTH = 7;
+    /**
+     * The default length of names that are created when a write is done.
+     */
+    public static final int DEFAULT_CONTAINER_NAME_LENGTH = 4;
 
     /**
      * Manta client driver.
@@ -98,6 +108,23 @@ public class MantaStorage extends NoneStorage {
     private Integer objectSize;
 
     /**
+     * Flag indicating that logging is enabled.
+     */
+    private boolean makeContainer;
+
+    /**
+     * When creating a object, and the create container flag is on this will be the defaulted depth for the path that we
+     * are going to use.
+     */
+    private int containerDepth;
+
+    /**
+     * This will be the default length of directories created when creating objects e.g. when the makeContainer flag is
+     * turned on.
+     */
+    private int containerLength;
+
+    /**
      * Multipart manager for encrypted loads.
      */
     private EncryptedServerSideMultipartManager encryptedMultipartManager;
@@ -127,6 +154,10 @@ public class MantaStorage extends NoneStorage {
         this.sections = cosbenchConfig.getNumberOfSections();
         this.objectSize = cosbenchConfig.getObjectSize();
         this.multipart = cosbenchConfig.isMultipart();
+        this.makeContainer = config.getBoolean("makeContainer", false);
+        this.containerDepth = config.getInt("containerDepth", DEFAULT_CONTAINER_DEPTH);
+        this.containerLength = config.getInt("containerLength", DEFAULT_CONTAINER_NAME_LENGTH);
+
 
         this.splitSize = cosbenchConfig.getSplitSize();
         if (splitSize == null) {
@@ -231,8 +262,7 @@ public class MantaStorage extends NoneStorage {
         if (logging) {
             logger.info("Performing PUT at /{}/{}", container, object);
         }
-
-        final String path = pathOfObject(container, object);
+        String newContainer = container;
         final long contentLength;
 
         if (chunked) {
@@ -241,6 +271,21 @@ public class MantaStorage extends NoneStorage {
             contentLength = length;
         }
         MantaHttpHeaders headers = new MantaHttpHeaders();
+
+        if (this.makeContainer) {
+            newContainer = currentTestDirectory;
+            try {
+                logger.info("Okay starting to create a depth of directories {} ", containerDepth);
+                for (int i = 0; i < containerDepth; i++) {
+                    newContainer += "/" + RandomStringUtils.randomAlphabetic(containerLength);
+                }
+                client.putDirectory(newContainer, true);
+            } catch (Exception e) {
+                throw new StorageException(e);
+            }
+        }
+        logger.info("Performing PUT at /{}/{}", newContainer, object);
+        final String path = pathOfObject(newContainer, object);
 
         try {
             if (durabilityLevel != null) {
