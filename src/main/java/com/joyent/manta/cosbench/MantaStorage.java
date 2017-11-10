@@ -56,6 +56,14 @@ public class MantaStorage extends NoneStorage {
      */
     public static final int DEFAULT_CONTAINER_NAME_LENGTH = 4;
     /**
+     * The default length of names that are created when a write is done.
+     */
+    public static final int DEFAULT_NUMBER_OF_LEAVES = 2;
+    /**
+     * The default length of names that are created when a write is done.
+     */
+    public static final int DEFAULT_NUMBER_OF_BRANCHES = 2;
+    /**
      * Manta client driver.
      */
     private MantaClient client;
@@ -132,6 +140,18 @@ public class MantaStorage extends NoneStorage {
      * If true this will make a depth containerDepth container for each obejct written.
      */
     private boolean makeContainer;
+    /**
+     * If true this will make a tree of accessible items of containerDepth depth.
+     */
+    private boolean makeTree = false;
+    /**
+     * If true this will make a tree of accessible items of containerDepth depth.
+     */
+    private int branchCount = DEFAULT_NUMBER_OF_BRANCHES;
+    /**
+     * Just testing something.
+     */
+    private String testField = RandomStringUtils.randomAlphabetic(DEFAULT_CONTAINER_DEPTH);
 
     @Override
     public void init(final Config config, final Logger logger) {
@@ -156,7 +176,9 @@ public class MantaStorage extends NoneStorage {
 
         this.containerDepth = config.getInt("containerDepth", DEFAULT_CONTAINER_DEPTH);
         this.containerLength = config.getInt("containerLength", DEFAULT_CONTAINER_NAME_LENGTH);
-        this.makeContainer = config.getBoolean("makeContainer", false);
+        this.makeTree = config.getBoolean("makeTree", false);
+        this.branchCount = config.getInt("branches", DEFAULT_NUMBER_OF_LEAVES);
+
         this.splitSize = cosbenchConfig.getSplitSize();
         if (splitSize == null) {
             splitSize = DEFAULT_SPLIT;
@@ -216,16 +238,56 @@ public class MantaStorage extends NoneStorage {
     @Override
     public void createContainer(final String container, final Config config) {
         if (logging) {
-            logger.info("Performing PUT at /{}", container);
+            logger.info("Performing PUT at /{} {}", container, testField);
         }
-
-        try {
-            client.putDirectory(directoryOfContainer(container));
-        } catch (Exception e) {
-            if (logging) {
-                logger.error("Error creating container", e);
+        if (makeTree) {
+            int containerNumber = Integer.parseInt(container.replaceAll("[a-zA-Z]*", "")) - 1;
+            if (containerNumber >= Math.pow(this.branchCount, this.containerDepth)) {
+                logger.error("Number of conatiner exceeds number specified in configuration correct configuration");
+                return;
+            }
+            logger.info(String.format("Number of container : %s", containerNumber));
+            String directoryName = getBranch(containerNumber);
+            logger.info(String.format("Container number %d \n Dir will be created %s recursivly", containerNumber,
+                    directoryName));
+            try {
+                client.putDirectory(directoryName, true);
+                logger.info(String.format("Added Directory: %s", directoryName));
+            } catch (Exception e) {
+                if (logging) {
+                    logger.error("Error creating container", e);
+                }
+            }
+        } else {
+            try {
+                client.putDirectory(directoryOfContainer(container));
+            } catch (Exception e) {
+                if (logging) {
+                    logger.error("Error creating container", e);
+                }
             }
         }
+    }
+
+    /**
+     * This will create a path for the given branch number.
+     *
+     * @param branchNo - The number of the branch that you want, they are numbered from 1 to branches^depth.
+     * @return the path for the given branch number.
+     */
+    public String getBranch(final int branchNo) {
+        int left = branchNo;
+        String dir = currentTestDirectory;
+        for (int i = (containerDepth - 1); i >= 0; i--) {
+            int curExp = (int) Math.pow(branchCount, i);
+            logger.info(String.format("The current exponent is  : %d", curExp));
+            int div = Math.floorDiv(left, curExp) + 1;
+            logger.info(String.format("The div is  : %d", div));
+            left = left - (curExp * (div - 1));
+            logger.info(String.format("The Left  is  : %d", left));
+            dir += String.format("/dir%d", div);
+        }
+        return dir;
     }
 
     @Override
@@ -261,10 +323,15 @@ public class MantaStorage extends NoneStorage {
         if (logging) {
             logger.info("Performing PUT at /{}/{}", container, object);
         }
-        if (makeContainer) {
+        // This has to be here, it is a phase specific switch, we only want to create in the main phase.
+        makeContainer = config.getBoolean("makeContainer", false);
+        logger.info(String.format("Make Container : %b  Make Tree : %b ", makeContainer, makeTree));
+        if (makeTree && !makeContainer) {
+            int containerNumber = Integer.parseInt(container.replaceAll("[a-zA-Z]*", "")) - 1;
+            newContainer = getBranch(containerNumber);
+        } else if (makeContainer) {
             newContainer = currentTestDirectory;
             try {
-                logger.info("Okay starting to create a depth of directories {} ", containerDepth);
                 for (int i = 0; i < containerDepth; i++) {
                     newContainer += "/" + RandomStringUtils.randomAlphabetic(containerLength);
                 }
@@ -273,8 +340,13 @@ public class MantaStorage extends NoneStorage {
                 throw new StorageException(e);
             }
         }
-
-        final String path = pathOfObject(newContainer, object);
+        String path;
+        if (newContainer.startsWith(currentTestDirectory)) {
+            path = String.format("%s/%s", newContainer, object);
+            logger.info(String.format("Adding object : %s", path));
+        } else {
+            path = pathOfObject(newContainer, object);
+        }
         final long contentLength;
 
         if (chunked) {
@@ -394,20 +466,25 @@ public class MantaStorage extends NoneStorage {
     @Override
     public InputStream getObject(final String container, final String object, final Config config) {
         final InputStream objectStream;
-
+        String path;
+        logger.info(String.format("Reading object container %s object %s", container, object));
+        if (makeTree) {
+            int treeNumber = Integer.parseInt(container.replaceAll("[a-zA-Z]*", "")) - 1;
+            path = String.format("%s/%s", getBranch(treeNumber), object);
+        } else {
+            path = pathOfObject(container, object);
+        }
         try {
-            final String path = pathOfObject(container, object);
 
             if (sections == 1) {
                 if (logging) {
-                    logger.info("Performing GET at /{}/{}", container, object);
+                    logger.info("Performing GET at /{}/{}", path, object);
                 }
                 objectStream = client.getAsInputStream(path);
             } else if (objectSize != null) {
                 if (logging) {
                     logger.info("Performing GET with HTTP byte range at /{}/{}", container, object);
                 }
-
                 int size = this.objectSize;
                 objectStream = new RangeJoiningInputStream(path, client, size, sections);
             } else {
