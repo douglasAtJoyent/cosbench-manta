@@ -73,7 +73,21 @@ in the config element of the workload configuration. In addition to those proper
 |                                      | object-size               |
 | 2                                    | durability-level          |
 | false                                | chunked                   |
-| stor/cosbench                        | manta-directory           |
+| false                                | makeTree .                |
+| 7                                    | containerDepth            |
+| 2                                    | branches .                |
+
+* Stage properties
+| Default                              | System Property           |
+|--------------------------------------|---------------------------|
+| false                                | makeContainer             |
+
+
+The makeTree option will create a balanced n-tree set of directories, in the init, and prepare
+stages. This with the containerDepth and branches parameter. 
+
+makeContainer will create a container of depth containerDepth for every write.
+
 
 For benchmarking purposes, changing `chunked`, `durability-level`, 
 `http.signature.native.rsa`, `manta.http_buffer_size`, `manta.verify_uploads`,
@@ -95,7 +109,7 @@ to make in order to download a single file.
 ## Docker Stand Alone
 You can use a preconfigured host with COSBench and the Manta adaptor preinstalled
 when you run the project's [Docker](https://www.docker.com/) image:
-[`dekobon/cosbench-manta`](https://hub.docker.com/r/dekobon/cosbench-manta/).
+[`douglasatjoyent/cosbench-manta`](https://cloud.docker.com/swarm/douglasatjoyent/repository/docker/douglasatjoyent/cosbench/general).
 
 Using Docker on your local machine you can log into a COSBench system setup for
 Manta by doing:
