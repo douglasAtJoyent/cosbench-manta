@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<workload name="test" description="sample workload configuration" config="">
+    <storage config="manta.verify_uploads=false;retries=3;manta.client_encryption=false;manta.encryption_key_id=cosbench-test;manta.encryption_algorithm=AES128/CTR/NoPadding;manta.encryption_key_bytes_base64=MKBUne726xyvMK2P0Y2DXg==;makeTree=true;containerDepth=7;branches=2" type="manta"/>
+    <workflow config="">
+        <workstage description="This file was generated, feel free to change it" name="init">
+           <work name="init" type="init" workers="5" interval="5" config="containers=r(1,128)" />
+        </workstage>
+        <workstage description="prepare" name="prepare">
+            <work name="prepare" type="prepare" workers="5" interval="5" config="containers=r(1,128);objects=r(1,10);sizes=u(5,10)MB;makeContainer=false" />
+        </workstage>
+        <workstage description="main phase" name="main">
+      	  <work config="" name="main" runtime="30" type="main" workers="15">
+	    <operation type="read"   ratio="20" division="none" config="containers=u(1,128);objects=u(1,10);" id="none"/>
+	    <operation type="write"  ratio="80" division="none" config="containers=u(1,6);objects=u(1,100);sizes=u(1,100)KB;makeContainer=true" id="none"/>
+          </work>
+        </workstage>
+    </workflow>
+</workload>
