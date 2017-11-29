@@ -6,6 +6,7 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.Map;
 import java.util.Objects;
+import java.text.DecimalFormat;
 
 import org.apache.commons.io.input.BoundedInputStream;
 import org.apache.commons.lang3.RandomStringUtils;
@@ -40,7 +41,7 @@ public class MantaStorage extends NoneStorage {
     /**
      * Hardcoded directory in Manta in which all benchmark files are stored.
      */
-    private static final String DEFAULT_COSBENCH_BASE_DIR = "stor/cosbench";
+    private static final String DEFAULT_COSBENCH_BASE_DIR = "stor/cosbench1";
 
     /**
      * The default number of maximum HTTP connections at one time to the Manta API.
@@ -131,23 +132,15 @@ public class MantaStorage extends NoneStorage {
     private int containerDepth;
 
     /**
-     * This will be the default length of directories created when creating objects e.g. when the makeContainer flag is
-     * turned on.
-     */
-    private int containerLength;
-
-    /**
-     * If true this will make a depth containerDepth container for each obejct written.
-     */
-    private boolean makeContainer;
-    /**
      * If true this will make a tree of accessible items of containerDepth depth.
      */
     private boolean makeTree = false;
+
     /**
      * If true this will make a tree of accessible items of containerDepth depth.
      */
     private int branchCount = DEFAULT_NUMBER_OF_BRANCHES;
+
     /**
      * Just testing something.
      */
@@ -174,9 +167,8 @@ public class MantaStorage extends NoneStorage {
         this.objectSize = cosbenchConfig.getObjectSize();
         this.multipart = cosbenchConfig.isMultipart();
 
-        this.containerDepth = config.getInt("containerDepth", DEFAULT_CONTAINER_DEPTH);
-        this.containerLength = config.getInt("containerLength", DEFAULT_CONTAINER_NAME_LENGTH);
         this.makeTree = config.getBoolean("makeTree", false);
+        this.containerDepth = config.getInt("containerDepth", DEFAULT_CONTAINER_DEPTH);
         this.branchCount = config.getInt("branches", DEFAULT_NUMBER_OF_LEAVES);
 
         this.splitSize = cosbenchConfig.getSplitSize();
@@ -209,14 +201,10 @@ public class MantaStorage extends NoneStorage {
 
         try {
             client = new MantaClient(context);
-
             final String baseDir = Objects.toString(cosbenchConfig.getBaseDirectory(), DEFAULT_COSBENCH_BASE_DIR);
-
             // We rely on COSBench properly cleaning up after itself.
             currentTestDirectory = String.format("%s/%s", context.getMantaHomeDirectory(), baseDir);
-
             client.putDirectory(currentTestDirectory, true);
-
             if (!client.existsAndIsAccessible(currentTestDirectory)) {
                 String msg = "Unable to create base test directory";
                 throw new StorageException(msg);
@@ -246,13 +234,12 @@ public class MantaStorage extends NoneStorage {
                 logger.error("Number of conatiner exceeds number specified in configuration correct configuration");
                 return;
             }
-            logger.info(String.format("Number of container : %s", containerNumber));
+            if (logging) {
+                logger.info(String.format("Number of container : %s", containerNumber));
+            }
             String directoryName = getBranch(containerNumber);
-            logger.info(String.format("Container number %d \n Dir will be created %s recursivly", containerNumber,
-                    directoryName));
             try {
                 client.putDirectory(directoryName, true);
-                logger.info(String.format("Added Directory: %s", directoryName));
             } catch (Exception e) {
                 if (logging) {
                     logger.error("Error creating container", e);
@@ -278,14 +265,14 @@ public class MantaStorage extends NoneStorage {
     public String getBranch(final int branchNo) {
         int left = branchNo;
         String dir = currentTestDirectory;
+        DecimalFormat formatter = new DecimalFormat("0000");
+        logger.info(String.format("Branch Number %d ", branchNo));
         for (int i = (containerDepth - 1); i >= 0; i--) {
             int curExp = (int) Math.pow(branchCount, i);
-            logger.info(String.format("The current exponent is  : %d", curExp));
             int div = Math.floorDiv(left, curExp) + 1;
-            logger.info(String.format("The div is  : %d", div));
             left = left - (curExp * (div - 1));
-            logger.info(String.format("The Left  is  : %d", left));
-            dir += String.format("/dir%d", div);
+            dir += String.format("/%s", formatter.format(div));
+            logger.info(String.format("Adding directory : %s ", dir));
         }
         return dir;
     }
@@ -295,9 +282,25 @@ public class MantaStorage extends NoneStorage {
         if (logging) {
             logger.info("Performing DELETE at /{}", container);
         }
-
         try {
-            client.deleteRecursive(directoryOfContainer(container));
+            if (makeTree) {
+                int containerNumber = Integer.parseInt(container.replaceAll("[a-zA-Z]*", "")) - 1;
+                String path = getBranch(containerNumber);
+                for (int i = 0; i < this.containerDepth; i++) {
+                    try {
+                        client.delete(path);
+                        path = path.substring(0, path.lastIndexOf("/"));
+                    } catch (Exception e) {
+                        // We are going to walk down the path trying to delete things but
+                        // if we run into a non-empty directory we will return.
+                        e.printStackTrace();
+                        return;
+                    }
+                }
+                client.deleteRecursive(directoryOfContainer(getBranch(containerNumber)));
+            } else {
+                client.deleteRecursive(directoryOfContainer(container));
+            }
         } catch (MantaClientHttpResponseException e) {
             if (!e.getServerCode().equals(MantaErrorCode.RESOURCE_NOT_FOUND_ERROR)) {
                 if (logging) {
@@ -323,24 +326,23 @@ public class MantaStorage extends NoneStorage {
         if (logging) {
             logger.info("Performing PUT at /{}/{}", container, object);
         }
-        // This has to be here, it is a phase specific switch, we only want to create in the main phase.
-        makeContainer = config.getBoolean("makeContainer", false);
-        logger.info(String.format("Make Container : %b  Make Tree : %b ", makeContainer, makeTree));
-        if (makeTree && !makeContainer) {
+        if (makeTree) {
+            // There is a flaw in this 1container1 would result in 11 but it will still have the
+            // desired effect of creating a n depth branch of the tree.
             int containerNumber = Integer.parseInt(container.replaceAll("[a-zA-Z]*", "")) - 1;
             newContainer = getBranch(containerNumber);
-        } else if (makeContainer) {
-            newContainer = currentTestDirectory;
-            try {
-                for (int i = 0; i < containerDepth; i++) {
-                    newContainer += "/" + RandomStringUtils.randomAlphabetic(containerLength);
+            if (!client.existsAndIsAccessible(newContainer)) {
+                try {
+                    client.putDirectory(newContainer, true);
+                } catch (IOException e) {
+                    e.printStackTrace();
                 }
-                client.putDirectory(newContainer, true);
-            } catch (Exception e) {
-                throw new StorageException(e);
             }
+            logger.info(String.format("We are going to try and put the file into %s ", newContainer));
         }
         String path;
+        logger.info(String.format("does %s contain %s :  %b", newContainer, currentTestDirectory,
+                newContainer.startsWith(currentTestDirectory)));
         if (newContainer.startsWith(currentTestDirectory)) {
             path = String.format("%s/%s", newContainer, object);
             logger.info(String.format("Adding object : %s", path));
@@ -369,6 +371,8 @@ public class MantaStorage extends NoneStorage {
                 client.put(path, data, contentLength, headers, null);
             }
         } catch (MantaClientHttpResponseException e) {
+            logger.info(String.format("Does the server code equals directory not exists %b  ",
+                    e.getServerCode().equals(MantaErrorCode.DIRECTORY_DOES_NOT_EXIST_ERROR)));
             // This is a fall-back in the weird cases where COSBench doesn't
             // do things in the right order.
             if (e.getServerCode().equals(MantaErrorCode.DIRECTORY_DOES_NOT_EXIST_ERROR)) {
@@ -444,9 +448,12 @@ public class MantaStorage extends NoneStorage {
         if (logging) {
             logger.info("Performing DELETE at /{}/{}", container, object);
         }
-
         try {
             String path = pathOfObject(container, object);
+            if (makeTree) {
+                int treeNumber = Integer.parseInt(container.replaceAll("[a-zA-Z]*", "")) - 1;
+                path = String.format("%s/%s", getBranch(treeNumber), object);
+            }
             client.delete(path);
         } catch (MantaClientHttpResponseException e) {
             if (!e.getServerCode().equals(MantaErrorCode.RESOURCE_NOT_FOUND_ERROR)) {
@@ -467,10 +474,13 @@ public class MantaStorage extends NoneStorage {
     public InputStream getObject(final String container, final String object, final Config config) {
         final InputStream objectStream;
         String path;
-        logger.info(String.format("Reading object container %s object %s", container, object));
+        if (logging) {
+            logger.info(String.format("Reading object container %s object %s", container, object));
+        }
         if (makeTree) {
             int treeNumber = Integer.parseInt(container.replaceAll("[a-zA-Z]*", "")) - 1;
             path = String.format("%s/%s", getBranch(treeNumber), object);
+            logger.info(String.format("The make tree is true, and the path is : %s", path));
         } else {
             path = pathOfObject(container, object);
         }
@@ -501,7 +511,6 @@ public class MantaStorage extends NoneStorage {
             }
             throw new StorageException(e);
         }
-
         return objectStream;
     }
 
