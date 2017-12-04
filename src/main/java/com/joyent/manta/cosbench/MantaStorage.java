@@ -217,10 +217,12 @@ public class MantaStorage extends NoneStorage {
         if (logging) {
             logger.debug("Manta client has been initialized");
         }
-        if (cosbenchConfig.isClientEncryptionEnabled()) {
-            encryptedMultipartManager = new EncryptedServerSideMultipartManager(client);
+        if (cosbenchConfig.isMultipart()) {
+            if (cosbenchConfig.isClientEncryptionEnabled()) {
+                encryptedMultipartManager = new EncryptedServerSideMultipartManager(client);
+            }
+            serverMultipartManager = new ServerSideMultipartManager(client);
         }
-        serverMultipartManager = new ServerSideMultipartManager(client);
     }
 
     @Override

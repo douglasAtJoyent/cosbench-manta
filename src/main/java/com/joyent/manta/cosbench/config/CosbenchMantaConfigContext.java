@@ -360,4 +360,13 @@ public class CosbenchMantaConfigContext implements ConfigContext {
     public String toString() {
         return ConfigContext.toString(this);
     }
+
+    /* (non-Javadoc)
+     * @see com.joyent.manta.config.ConfigContext#getSkipDirectoryDepth()
+     */
+    @Override
+    public Integer getSkipDirectoryDepth() {
+        // TODO Auto-generated method stub
+        return null;
+    }
 }
