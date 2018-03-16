@@ -333,12 +333,10 @@ public class MantaStorage extends NoneStorage {
             // desired effect of creating a n depth branch of the tree.
             int containerNumber = Integer.parseInt(container.replaceAll("[a-zA-Z]*", "")) - 1;
             newContainer = getBranch(containerNumber);
-            if (!client.existsAndIsAccessible(newContainer)) {
-                try {
-                    client.putDirectory(newContainer, true);
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
+            try {
+                client.putDirectory(newContainer, true);
+            } catch (IOException e) {
+                e.printStackTrace();
             }
             logger.info(String.format("We are going to try and put the file into %s ", newContainer));
         }
