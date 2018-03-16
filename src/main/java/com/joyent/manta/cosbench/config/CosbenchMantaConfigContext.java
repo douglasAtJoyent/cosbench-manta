@@ -9,8 +9,7 @@ import com.joyent.manta.config.MapConfigContext;
 import org.bouncycastle.util.encoders.Base64;
 
 /**
- * Cosbench specific implementation of {@link ConfigContext} that allows us to
- * connect Cosbench config seamlessly.
+ * Cosbench specific implementation of {@link ConfigContext} that allows us to connect Cosbench config seamlessly.
  *
  * @author <a href="https://github.com/dekobon">Elijah Zupancic</a>
  */
@@ -208,8 +207,7 @@ public class CosbenchMantaConfigContext implements ConfigContext {
     }
 
     /**
-     * @return the base directory under the home directory in Manta to write
-     *         test data
+     * @return the base directory under the home directory in Manta to write test data
      */
     public String getBaseDirectory() {
         return safeGetString("manta-directory", "Couldn't get Manta directory setting from COSBench config");
@@ -236,9 +234,8 @@ public class CosbenchMantaConfigContext implements ConfigContext {
     }
 
     /**
-     * Reads the configuration and determines the number of HTTP Range requests
-     * needed to download the object. By default this returns 1 which means do
-     * not do range requests and download the file normally.
+     * Reads the configuration and determines the number of HTTP Range requests needed to download the object. By
+     * default this returns 1 which means do not do range requests and download the file normally.
      *
      * @return the number of sections a file is broken into
      */
@@ -258,9 +255,8 @@ public class CosbenchMantaConfigContext implements ConfigContext {
     }
 
     /**
-     * Reads the configuration and finds the set size of the objects being
-     * benchmarked. This option doesn't work with random object sizes and is
-     * only used when number of sections is greater than 1.
+     * Reads the configuration and finds the set size of the objects being benchmarked. This option doesn't work with
+     * random object sizes and is only used when number of sections is greater than 1.
      *
      * @return the number in bytes of the size of files being benchmarked
      */
@@ -269,8 +265,8 @@ public class CosbenchMantaConfigContext implements ConfigContext {
     }
 
     /**
-     * Utility method that checks for the presence of Integer values in the
-     * COSBench configuration and then returns the value if found.
+     * Utility method that checks for the presence of Integer values in the COSBench configuration and then returns the
+     * value if found.
      *
      * @param key key to check for
      * @param message message to display when value isn't present
@@ -293,8 +289,8 @@ public class CosbenchMantaConfigContext implements ConfigContext {
     }
 
     /**
-     * Utility method that checks for the presence of String values in the
-     * COSBench configuration and then returns the value if found.
+     * Utility method that checks for the presence of String values in the COSBench configuration and then returns the
+     * value if found.
      *
      * @param key key to check for
      * @param message message to display when value isn't present
@@ -310,8 +306,8 @@ public class CosbenchMantaConfigContext implements ConfigContext {
     }
 
     /**
-     * Utility method that checks for the presence of Boolean values in the
-     * COSBench configuration and then returns the value if found.
+     * Utility method that checks for the presence of Boolean values in the COSBench configuration and then returns the
+     * value if found.
      *
      * @param key key to check for
      * @param message message to display when value isn't present
@@ -327,8 +323,8 @@ public class CosbenchMantaConfigContext implements ConfigContext {
     }
 
     /**
-     * Utility method to checks for the presence of an Enum value in the
-     * COSBench configuration and then returns the value if found.
+     * Utility method to checks for the presence of an Enum value in the COSBench configuration and then returns the
+     * value if found.
      *
      * @param key key to check for
      * @param message message to display when value isn't present
@@ -361,12 +357,17 @@ public class CosbenchMantaConfigContext implements ConfigContext {
         return ConfigContext.toString(this);
     }
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
+     * This will change the number of directories that will be skipped when checking
+     * to see a directory exists.
+     *
      * @see com.joyent.manta.config.ConfigContext#getSkipDirectoryDepth()
      */
     @Override
     public Integer getSkipDirectoryDepth() {
-        // TODO Auto-generated method stub
-        return null;
+        return safeGetInteger(MapConfigContext.MANTA_SKIP_DIRECTORY_DEPTH_KEY,
+                "Couldn't get timeout from COSBench config");
     }
+
 }
