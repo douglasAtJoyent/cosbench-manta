@@ -2,6 +2,8 @@ package com.joyent.manta.cosbench;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.Map;
@@ -137,6 +139,10 @@ public class MantaStorage extends NoneStorage {
     private boolean makeTree = false;
 
     /**
+     * This is a special case in where we will hash the directory using MD2.
+     */
+    private boolean hashDirectory = false;
+    /**
      * If true this will make a tree of accessible items of containerDepth depth.
      */
     private int branchCount = DEFAULT_NUMBER_OF_BRANCHES;
@@ -168,6 +174,8 @@ public class MantaStorage extends NoneStorage {
         this.multipart = cosbenchConfig.isMultipart();
 
         this.makeTree = config.getBoolean("makeTree", false);
+        this.hashDirectory = config.getBoolean("hashDirectory", false);
+
         this.containerDepth = config.getInt("containerDepth", DEFAULT_CONTAINER_DEPTH);
         this.branchCount = config.getInt("branches", DEFAULT_NUMBER_OF_LEAVES);
 
@@ -269,6 +277,13 @@ public class MantaStorage extends NoneStorage {
         String dir = currentTestDirectory;
         DecimalFormat formatter = new DecimalFormat("0000");
         logger.info(String.format("Branch Number %d ", branchNo));
+        if (hashDirectory) {
+            try {
+                return dir + hashDirectoryName("" + branchNo);
+            } catch (NoSuchAlgorithmException e) {
+                e.printStackTrace();
+            }
+        }
         for (int i = (containerDepth - 1); i >= 0; i--) {
             int curExp = (int) Math.pow(branchCount, i);
             int div = Math.floorDiv(left, curExp) + 1;
@@ -277,6 +292,63 @@ public class MantaStorage extends NoneStorage {
             logger.info(String.format("Adding directory : %s ", dir));
         }
         return dir;
+    }
+
+    /**
+     * A character array of hex characters.
+     */
+    private static final char[] HEX = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e',
+            'f' };
+    /**
+     * constant being used.
+     */
+    private static final int FO = 0xF0;
+    /**
+     * constant being used.
+     */
+    private static final int OF = 0x0F;
+    /**
+     * constant being used.
+     */
+    private static final int BIT_LENGTH = 4;
+
+    /**
+     * This will transform a byte array to hex. This and the hash directory named was found on
+     * https://stackoverflow.com/questions/13109588/base64-encoding-in-java
+     *
+     * @param bytes the array to transform.
+     * @return string - the string of the byte array
+     */
+    public static String byteArray2Hex(final byte[] bytes) {
+        StringBuffer sb = new StringBuffer(bytes.length * 2);
+        for (final byte b : bytes) {
+            sb.append(HEX[(b & FO) >> BIT_LENGTH]);
+            sb.append(HEX[b & OF]);
+        }
+        return sb.toString();
+    }
+
+    /**
+     * This will hash a directory name, this will take the directory depth and divide up the hashed string.
+     *
+     * @param stringToEncrypt - string to encrypt.
+     * @return - a hashed string
+     * @throws NoSuchAlgorithmException - this will never be actually thrown.
+     */
+    public String hashDirectoryName(final String stringToEncrypt) throws NoSuchAlgorithmException {
+        MessageDigest messageDigest = MessageDigest.getInstance("MD2");
+        messageDigest.update(stringToEncrypt.getBytes());
+        String charHash = byteArray2Hex(messageDigest.digest());
+        // Now we will take the result of hash and create a directory path.
+        String directoryPath = "";
+        int lengthOfDirs = (int) charHash.length() / containerDepth;
+        String sillyString = ".{" + lengthOfDirs + "}";
+        String[] paths = charHash.split(sillyString, containerDepth);
+        for (int i = 0; i < paths.length; i++) {
+            String sub = charHash.substring(i * lengthOfDirs, lengthOfDirs + (i * lengthOfDirs));
+            directoryPath += "/" + sub;
+        }
+        return directoryPath;
     }
 
     @Override
