@@ -362,7 +362,7 @@ public class MantaStorage extends NoneStorage {
                 String path = getBranch(containerNumber);
                 for (int i = 0; i < this.containerDepth; i++) {
                     try {
-                        client.delete(path);
+                        client.deleteRecursive(path);
                         path = path.substring(0, path.lastIndexOf("/"));
                     } catch (Exception e) {
                         // We are going to walk down the path trying to delete things but
