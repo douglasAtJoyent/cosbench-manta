@@ -4,11 +4,11 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.text.DecimalFormat;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.Map;
 import java.util.Objects;
-import java.text.DecimalFormat;
 
 import org.apache.commons.io.input.BoundedInputStream;
 import org.apache.commons.lang3.RandomStringUtils;
@@ -360,14 +360,20 @@ public class MantaStorage extends NoneStorage {
             if (makeTree) {
                 int containerNumber = Integer.parseInt(container.replaceAll("[a-zA-Z]*", "")) - 1;
                 String path = getBranch(containerNumber);
+                if (logging) {
+                    logger.info("Performing deleting directory /{}", path);
+                }
+                logger.info("Trying to delete /{} paths ", this.containerDepth);
                 for (int i = 0; i < this.containerDepth; i++) {
                     try {
+                        logger.info("Performing deleting directory /{}", path);
                         client.deleteRecursive(path);
                         path = path.substring(0, path.lastIndexOf("/"));
                     } catch (Exception e) {
                         // We are going to walk down the path trying to delete things but
                         // if we run into a non-empty directory we will return.
                         e.printStackTrace();
+                        logger.info("Exception thrown /{}", e);
                         return;
                     }
                 }

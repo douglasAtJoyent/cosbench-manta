@@ -370,4 +370,23 @@ public class CosbenchMantaConfigContext implements ConfigContext {
                 "Couldn't get timeout from COSBench config");
     }
 
+    /* (non-Javadoc)
+     * @see com.joyent.manta.config.ConfigContext#getConnectionRequestTimeout()
+     */
+    @Override
+    public Integer getConnectionRequestTimeout() {
+        return safeGetInteger(MapConfigContext.MANTA_CONNECTION_REQUEST_TIMEOUT_KEY,
+                "Couldn't get timeout from COSBench config");
+    }
+
+    /* (non-Javadoc)
+     * @see com.joyent.manta.config.ConfigContext#getExpectContinueTimeout()
+     */
+    @Override
+    public Integer getExpectContinueTimeout() {
+        return safeGetInteger(MapConfigContext.MANTA_EXPECT_CONTINUE_TIMEOUT_KEY,
+                "Couldn't get timeout from COSBench config");
+    }
+
+
 }
