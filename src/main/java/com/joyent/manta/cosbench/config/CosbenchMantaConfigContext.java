@@ -370,7 +370,9 @@ public class CosbenchMantaConfigContext implements ConfigContext {
                 "Couldn't get timeout from COSBench config");
     }
 
-    /* (non-Javadoc)
+    /*
+     * This is the connection request timeout only good for 3.2.2 and beyond
+     * (non-Javadoc)
      * @see com.joyent.manta.config.ConfigContext#getConnectionRequestTimeout()
      */
     @Override
